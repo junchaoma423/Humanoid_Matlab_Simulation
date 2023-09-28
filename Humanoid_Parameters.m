@@ -1,0 +1,223 @@
+clear;
+%% Pre-formulate functions
+global Contact_Jacobian Rotm_foot
+[Contact_Jacobian,Rotm_foot]=Formulate_Contact_Jacobian;
+%% General
+world_damping = 1e-3;
+world_rot_damping = 0.05;
+joint_stiffness = 0;
+joint_damping = .0015;
+arm_damping = .05;
+contact_stiffness = 1e4;
+contact_damping = 1e3; %contact_stiffness/10;
+contact_point_radius = 0.0001;
+ankle_stiffness = 0;
+ankle_damping = 0.0;
+limit_stiffness = 1e3;
+limit_damping = 1e2;
+mu_s = 10.5;
+mu_k = 10.4;
+mu_vth = 0.1;
+%% Controller global params
+global state p_foot_w p_foot_pre t_start gaitcycle dt_MPC N ...
+    optimization FootPosition optimization gait dt_MPC_vec acc_t ...
+    stand_position current_height armslocked arms_IC mu_controller x_traj foot_x_offset pickup ...
+    hybrid_CoM m_box Ib_hybrid lastOutputWBC swing_schedule throw ...
+    detach dropoff xdes2
+stand_position=[0;-0.1;0;0;0.1;0]; % record foot position when stand
+N = 5000;
+% state = zeros(12,1);
+p_foot_w = zeros(6,1);
+t_start = 0;
+gaitcycle = 0.3;
+dt_MPC = 0.03;
+p_foot_pre = zeros(6,N+10);
+gait = 1; %walking = 1; hopping = 2; running = 3;
+
+armslocked = 1;
+mu_controller = .5;
+foot_x_offset = 0;
+pickup = 0;
+dropoff = 0;
+throw = 0;
+hybrid_CoM = [0;0;0];
+m_box = 0;
+Ib_hybrid = diag([0.064, 0.057, 0.016]);
+lastOutputWBC = zeros(23,1);
+detach = 1;
+swing_schedule = [0;0];
+xdes2 = [0;0];
+%% grid surface definition
+% sine wave
+% x_grid = [-1:0.01:5];
+% y_grid = [-1:0.01:1];
+% [X,Y] = meshgrid(x_grid,y_grid);
+% z_heights = [0.05*cos(2*pi*X)-0.05]';
+%platform:
+x_grid = [-5 -1.251 -1.25 -1.05 -1.049 0.149 0.15 0.5 0.501 5];
+y_grid = [-5 -0.601 -0.6 0.6 0.601 5];
+z_heights = [ 0 0 0 0 0 0;
+    0 0 0 0 0 0;
+    0 0 0.23 0.23 0 0;
+    0 0 0.23 0.23 0 0;
+    0 0 0 0 0 0;
+    0 0 0 0 0 0;
+    0 0 0.23 0.23 0 0;
+    0 0 0.23 0.23 0 0;
+    0 0 0 0 0 0;
+    0 0 0 0 0 0];
+% stepping stone:
+% [x_grid,y_grid,z_heights] = meshGridTerrain;
+%% contact cloud:
+npt = 50;
+contact_cloud = [ [[linspace(-0.06,0.09,npt)]',ones(npt,1)*0, ones(npt,1)*0]; 
+                    [[linspace(-0.06,0.09,npt)]',ones(npt,1)*0.01, ones(npt,1)*0]; 
+                    [[linspace(-0.06,0.09,npt)]',ones(npt,1)*-0.01, ones(npt,1)*0]];
+%contact_cloud =  [[linspace(-0.06,0.09,npt)]',ones(npt,1)*0, ones(npt,1)*0]; 
+
+mark_distance=1;
+mark_x=-5:mark_distance:5;
+mark_y=-5:mark_distance:5;
+mark_cloud_x=repmat(mark_x,length(mark_y),1);
+mark_cloud_x=reshape(mark_cloud_x,[length(mark_x)*length(mark_y),1]);
+mark_cloud_y=repmat(mark_y',length(mark_x),1);
+mark_cloud=[mark_cloud_x,mark_cloud_y,zeros(length(mark_x)*length(mark_y),1)];
+
+
+% [0 0 0; 0.02 0 0; 0.04 0 0; 0.06 0 0; 0.08 0 0; 0.09 0 0; -0.02 0 0; -0.04 0 0; -0.06 0 0;
+%     0 0.01 0; 0.02 0.01 0; 0.04 0.01 0; 0.06 0.01 0; 0.08 0.01 0; 0.09 0.01 0; -0.02 0.01 0; -0.04 0.01 0; -0.06 0.01 0;
+%     0 -0.01 0; 0.02 -0.01 0; 0.04 -0.01 0; 0.06 -0.01 0; 0.08 -0.01 0; 0.09 -0.01 0; -0.02 -0.01 0; -0.04 -0.01 0; -0.06 -0.01 0;];
+%% toggle optimization results
+%linear interpolation
+optimization = 0;
+
+if optimization  == 1; run('OptimizationDataInterpolation.m'); end
+
+%% vairable MPC dt
+%MPC_dts = [0.0199999899908193	0.0231204120207712	0.0277615075524941	0.0317722454108596	0.0281591137137572	0.0363925478040158	0.0246345367422273	0.0257832621650839	0.0308989019251339	0.0199999900000298];
+% MPC_dts = [0.0225 0.0225 0.0275 0.03 0.0275 0.035 0.025 0.025 0.03 0.02];
+% % 
+MPC_dts = 0.03;
+dt_MPC_vec = define_dt_MPC(MPC_dts); %vector defining MPC dts
+acc_t = zeros(length(dt_MPC_vec)+1,1);
+for ith = 2:length(dt_MPC_vec)+1
+    acc_t(ith,1) = sum(dt_MPC_vec(1:ith-1));
+end
+
+%% Body
+% IC
+body_x0 = 0;
+body_y0 = 0;
+body_z0 = 0.495;
+current_height=body_z0;
+body_v0 = [0 0 0];
+body_R = [0 0 0];
+%% Hip 1
+% IC
+hip1_q0 = 0;
+hip1_dq0 = 0;
+hip_max = 30;
+hip_min = -30;
+%% Hip 2
+% IC
+hip2_q0_L = 0;
+hip2_dq0_L = 0;
+hip2_q0_R = 0;
+hip2_dq0_R = 0;
+hip2_max = 18;
+hip2_min = -18;
+%% Thigh
+% IC
+thigh_q0 = pi/4;
+thigh_dq0 = 0;
+thigh_max = 120;
+thigh_min = -120;
+%% Calf
+% IC
+calf_q0 = -pi/2;
+calf_dq0 = 0;
+knee_max = -15;
+knee_min = -160;
+%% Toe
+% IC
+toe_q0 = pi/4;
+toe_dq0 = 0;
+ankle_max = 75;
+ankle_min = -75;
+%% shoulder x
+shoulderx_q0 = deg2rad(3);
+shoulderx_dq0 = 0;
+shoulderx_max = 90;
+shoulderx_min = -10;
+% shoulderx_max = 15;
+% shoulderx_min = -5;
+max_arm_speed = 21.5;
+%% shoulder y
+shouldery_q0 = deg2rad(20);
+shouldery_dq0 = 0;
+shouldery_max = 90;
+shouldery_min = -90;
+% shouldery_max = 40;
+% shouldery_min = 0;
+%% elbow
+elbow_q0 = deg2rad(-120);
+elbow_dq0 = 0;
+elbow_max = 150;
+elbow_min = -150;
+% elbow_max = -45;
+% elbow_min = -90;
+arms_IC = [shoulderx_q0+0.1;-shoulderx_q0-0.1 ;shouldery_q0;shouldery_q0; elbow_q0;elbow_q0];
+%%
+global r1x r1y r1z r2x r2y r2z r3x r3y r3z r4z r5z
+r1x=0.075;
+r1y=-0.02;
+r1z=-0.06;
+r2x=-0.09;
+r2y=-0.08;
+r2z=0;
+r3x=0;
+r3y=0.057;
+r3z=-0.22;
+r4z=-0.22;
+r5z=-0.036;
+%% zero IC
+% body_z0 = 0.80;
+% hip1_q0 = 0;
+% hip1_dq0 = 0;
+% hip2_q0_L = 0;
+% hip2_dq0_L = 0;
+% hip2_q0_R = 0;
+% hip2_dq0_R = 0;
+% thigh_q0 = 0;
+% thigh_dq0 = 0;
+% calf_q0 = 0;
+% calf_dq0 = 0;
+% toe_q0 = 0;
+% toe_dq0 = 0;
+%% Block IC
+block_x_ic = 0.22;
+block_y_ic = 0;
+block_z_ic = 0.51;
+block_R = [0 0 0];
+if pickup == 1
+    block_x_ic = 0;
+    block_y_ic = 0.3;
+    block_z_ic = 0.34;
+end
+block_contact_points = ...
+    [ [[linspace(-0.1,0.1,10)]',ones(10,1)*0.1, ones(10,1)*-0.1];
+    [[linspace(-0.1,0.1,10)]',ones(10,1)*-0.1, ones(10,1)*-0.1];
+    [[linspace(-0.1,0.1,10)]',ones(10,1)*0.1, ones(10,1)*0.1];
+    [[linspace(-0.1,0.1,10)]',ones(10,1)*-0.1, ones(10,1)*0.1]];
+body_contact_points =...
+    [ [ones(20,1)*0, ones(20,1)*0.05, [linspace(-0.17,0.1,20)]'];
+    [ones(20,1)*0, ones(20,1)*-0.05, [linspace(-0.17,0.1,20)]'];
+    [ones(5,1)*0.03, ones(5,1)*-0.06, [linspace(-0.25,-0.17,5)]'];
+    [ones(5,1)*0.03, ones(5,1)*0.06, [linspace(-0.25,-0.17,5)]'] ];
+function out = define_dt_MPC(vec)
+    out = [];
+    for i=1:length(vec)
+        out = [out;vec(i)*ones(5,1)];
+    end
+    out = [out;0.03*ones(5*(1000-i),1)];
+end

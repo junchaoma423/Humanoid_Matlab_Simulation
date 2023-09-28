@@ -1,0 +1,108 @@
+l =length(out.GRF_MPC(1,1,:))-1;
+fz1 = zeros(l,1);
+fz2 = zeros(l,1);
+fx1= zeros(l,1);
+fx2= zeros(l,1);
+fy1= zeros(l,1);
+fy2= zeros(l,1);
+t = zeros(l,1);
+z = zeros(l,1);
+Mx1 = zeros(l,1);
+Mx2 = zeros(l,1);
+My1 = zeros(l,1);
+My2 = zeros(l,1);
+Mz1 = zeros(l,1);
+Mz2 = zeros(l,1);
+tauHipx = [];
+out.Fqp = out.Fqp1;
+out.Fqp(:,1,end) = zeros(12,1);
+for i = 1:l
+    t(i) = out.tout((i-1)*30+1);
+    fx1(i) = out.GRF_MPC(1,1,i)';
+    fx2(i) = out.GRF_MPC(4,1,i)';
+    fy1(i) = out.GRF_MPC(2,1,i)';
+    fy2(i) = out.GRF_MPC(5,1,i)';
+    fz1(i) = out.GRF_MPC(3,1,i)';
+    fz2(i) = out.GRF_MPC(6,1,i)';
+    Mx1(i) = out.GRF_MPC(7,1,i)';
+    Mx2(i) = out.GRF_MPC(10,1,i)';
+    My1(i) = out.GRF_MPC(8,1,i)';
+    My2(i) = out.GRF_MPC(11,1,i)';
+    Mz1(i) = out.GRF_MPC(9,1,i)';
+    Mz2(i) = out.GRF_MPC(12,1,i)';
+
+    fx11(i) = out.GRF_MPC1(1,1,i)';
+    fx21(i) = out.GRF_MPC1(4,1,i)';
+    fy11(i) = out.GRF_MPC1(2,1,i)';
+    fy21(i) = out.GRF_MPC1(5,1,i)';
+    fz11(i) = out.GRF_MPC1(3,1,i)';
+    fz21(i) = out.GRF_MPC1(6,1,i)';
+    Mx11(i) = out.GRF_MPC1(7,1,i)';
+    Mx21(i) = out.GRF_MPC1(10,1,i)';
+    My11(i) = out.GRF_MPC1(8,1,i)';
+    My21(i) = out.GRF_MPC1(11,1,i)';
+    Mz11(i) = out.GRF_MPC1(9,1,i)';
+    Mz21(i) = out.GRF_MPC1(12,1,i)';
+  
+%     tauHipx(i) = out.tau_adj(i,3);
+end
+
+figure(5)
+
+subplot(5,1,1)
+plot(t,fx1,t,fx2,'Linewidth',1.5);
+hold on; plot(t,fx11,t,fx21,'Linewidth',1.5);
+xlabel('Time (s)');
+ylabel('F_x (N)');
+legend('Left Leg','Right Leg');
+title('MPC Forces and Moments');
+% xlim([0 1.8]);
+
+subplot(5,1,2)
+plot(t,fy1,t,fy2,'Linewidth',1.5);
+hold on; plot(t,fy11,t,fy21,'Linewidth',1.5);
+xlabel('Time (s)');
+ylabel('F_y (N)');
+% xlim([0 1.8]);
+
+subplot(5,1,3)
+plot(t,fz1,t,fz2,'Linewidth',1.5);
+hold on; plot(t,fz11,t,fz21,'Linewidth',1.5);
+xlabel('Time (s)');
+ylabel('F_z (N)');
+% xlim([0 1.8]);
+
+subplot(5,1,4)
+plot(t,My1,t,My2,'Linewidth',1.5);
+hold on; plot(t,My11,t,fx21,'Linewidth',1.5);
+xlabel('Time (s)');
+ylabel('M_y (Nm)');
+% xlim([0 1.8]);
+
+subplot(5,1,5)
+plot(t,Mz1,t,Mz2,'Linewidth',1.5);
+xlabel('Time (s)');
+ylabel('M_z (Nm)');
+% xlim([0 1.8]);
+% 
+% figure(6)
+% 
+% % subplot(1,2,1)
+% plot(t,fx2,t,fy2,t,fz2,t,Mx2,t,My2,t,Mz2,'r','Linewidth',1.5);
+% xlabel('time,t');
+% ylabel('Force, N');
+% legend('x','y','z','Mx','My','Mz');
+% title('Leg 2');
+
+
+% subplot(1,2,2)
+% plot(t,z,t,0.4*ones(length(t),1));
+% ylim([0.2 0.5]);
+% xlabel('time,t');
+% ylabel('COM z, m');
+% title('COM z position');
+% legend('Actual','Desired');
+
+
+% figure (4)
+% plot(t,tauHipx);

@@ -1,0 +1,113 @@
+global optimization
+tmin = 0.3;
+tmax = out.time(end);
+
+% figure(3)
+% plot3(x,y,z);
+% xlim([-0.025 0.025]);
+% ylim([-0.025 0.025]);
+% zlim([0.28 0.35]);
+roll = [];
+yaw = [];
+pitch = [];
+roll_h = [];
+yaw_h  = [];
+pitch_h  = [];
+
+for i = 1:length(out.time)
+    eul = quat2eul(out.xout(i,1:4),'xyz');
+    t(i) = out.time(i);
+    roll(i) = eul(1)*180/pi;
+    yaw(i) = eul(3)*180/pi;
+    pitch(i) = eul(2)*180/pi;
+    eul_h = quat2eul(out.x_hybrid(1,1:4,i),'xyz');
+    roll_h(i) = eul_h(1)*180/pi;
+    yaw_h(i) = eul_h(3)*180/pi;
+    pitch_h(i) = eul_h(2)*180/pi;
+end
+
+figure;
+
+subplot(3,2,1);
+plot(out.time,out.xout(:,5),'Linewidth',1.5);
+xlabel('Time (s)');title('Body CoM Position');
+ylabel('CoM position X (m)');
+% legend('Actual','Commanded');
+xlim([tmin tmax]);
+if optimization == 1
+    hold on;
+    plot(linspace(0,length(f1x)*0.001,length(f1x)), com_x(1,:),'--r','LineWidth',1.5)
+%     legend('Actual','Optimization');
+end
+
+subplot(3,2,3);
+plot(out.time,out.xout(:,6),'Linewidth',1.5);
+xlabel('Time (s)');
+ylabel('CoM position Y (m)');
+xlim([tmin tmax]);
+ ylim([-0.1 0.1]);
+if optimization == 1
+    hold on;
+    plot(linspace(0,length(f1x)*0.001,length(f1x)), com_y(1,:),'--r','LineWidth',1.5)
+%     legend('Actual','Optimization');
+end
+
+subplot(3,2,5);
+plot(out.time,out.xout(:,7),'Linewidth',1.5);
+xlabel('Time (s)');
+ylabel('CoM position Z (m)');
+xlim([tmin tmax]);
+ylim([0.45 0.65]);
+if optimization == 1
+    hold on;
+    plot(linspace(0,length(f1x)*0.001,length(f1x)), com_z(1,:),'--r','LineWidth',1.5)
+%     legend('Actual','Optimization');
+end
+
+%velocity
+subplot(3,2,2);
+out.time,out.xout(1,11) = 0;
+plot(out.time,out.xout(:,11),'Linewidth',1.5);
+xlabel('Time (s)');title('Body CoM Velocity');hold on;
+% plot([0 tmax],[1.5 1.5],'Linewidth',1.5);
+ylabel('CoM velocity X (m/s)');
+xlim([tmin tmax]);
+ylim([0 2]);
+
+if optimization == 1
+    hold on;
+    plot(linspace(0,length(f1x)*0.001,length(f1x)), com_vx(1,:)/1.1,'--r','LineWidth',1.5)
+    legend('Actual','Optimization');
+end
+
+subplot(3,2,4);
+plot(out.time,out.xout(:,12),'Linewidth',1.5);
+xlabel('Time (s)');
+ylabel('CoM velocity Y (m/s)');
+xlim([tmin tmax]);
+ylim([-0.6 0.6]);
+% xlim([0 3.6]);
+% legend('Actual','Desired');
+if optimization == 1
+    hold on;
+    plot(linspace(0,length(f1x)*0.001,length(f1x)), com_vy(1,:),'--r','LineWidth',1.5)
+%     legend('Actual','Optimization');
+end
+
+subplot(3,2,6);
+plot(out.time,out.xout(:,13),'Linewidth',1.5);
+xlabel('Time (s)');
+ylabel('CoM velocity Z (m/s)');
+
+xlim([tmin tmax]);ylim([-0.6 0.6]);
+if optimization == 1
+    hold on;
+    plot(linspace(0,length(f1x)*0.001,length(f1x)), com_vz(1,:),'--r','LineWidth',1.5)
+    legend('Actual','Optimization');
+end
+
+% figure;
+% stem(acc_t(1:end-1),dt_MPC_vec);
+% xlabel('Time,s');title('Gait periods');
+% ylabel('Gait period, s');
+% xlim([0 tmax]);
