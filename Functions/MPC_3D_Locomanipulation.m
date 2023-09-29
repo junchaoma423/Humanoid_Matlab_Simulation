@@ -53,7 +53,7 @@ end
 %hybrid body state modifiers
 % eul_des(2) = eul_des(2) - 0.05*( (detach-1)*(-1) ); %180 turn
 eul_des(2) = eul_des(2) - deg2rad(Em1(1)*1);
-xdes(5) = -Em1(1)*0.004;
+xdes(5) = Em1(1)*0.04;
 
 R_z=[cos(eul(3,1)), -sin(eul(3,1)),0;
     sin(eul(3,1)), cos(eul(3,1)),0;
@@ -233,7 +233,7 @@ MF=repmat(MFs,h,1);
 
 % motor torque limit
 ST1=[contact_mapping, zeros(10,3)];
-MT1=[33.5;33.5;33.5;51.7;33.5;33.5;33.5;33.5;51.7;33.5];
+MT1=[33.5;33.5;33.5;100;33.5;33.5;33.5;33.5;100;33.5];
 
 STs=[ST1;-ST1];
 MTs=[MT1;MT1];
