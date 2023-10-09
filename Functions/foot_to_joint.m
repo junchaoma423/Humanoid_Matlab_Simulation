@@ -25,8 +25,8 @@ function q_des = foot_to_joint(foot,q,Rotm,eul,feedback_ratio,sidesign)
  distance_2D_xOz=(distance_3D^2-distance_horizontal^2)^0.5;
  %
  q_des(2)=asin(foot_des_to_hip_roll(2)/distance_2D_yOz)+asin(distance_horizontal*sidesign/distance_2D_yOz);
- q_des(3)=acos(distance_2D_xOz/2/0.22)-acos(distance_vertical/distance_2D_xOz)*(foot_des_to_hip_roll(1)+0.06)/abs((foot_des_to_hip_roll(1)+0.06));
- q_des(4)=2*asin(distance_2D_xOz/2/0.22)-pi;
+ q_des(3)=acos(distance_2D_xOz/2/0.32)-acos(distance_vertical/distance_2D_xOz)*(foot_des_to_hip_roll(1)+0.06)/abs((foot_des_to_hip_roll(1)+0.06));
+ q_des(4)=2*asin(distance_2D_xOz/2/0.32)-pi;
 
 
 

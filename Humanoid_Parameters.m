@@ -108,7 +108,7 @@ end
 % IC
 body_x0 = 0;
 body_y0 = 0;
-body_z0 = 0.495;
+body_z0 = 0.64;
 current_height=body_z0;
 body_v0 = [0 0 0];
 body_R = [0 0 0];
